@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#071d26">
+  <title>Écume — Régate côtière</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="game-shell">
+    <section class="chart-panel" aria-label="Zone de navigation">
+      <canvas id="gameCanvas"></canvas>
+
+      <div class="topbar">
+        <div class="brand">
+          <span class="brand-mark">É</span>
+          <div><strong>ÉCUME</strong><small>RÉGATE CÔTIÈRE 01</small></div>
+        </div>
+        <div class="race-clock">
+          <small id="phaseLabel">EN ATTENTE</small>
+          <strong id="timer">00:00.0</strong>
+        </div>
+      </div>
+
+      <div class="message" id="message" aria-live="polite"></div>
+
+      <div class="intro" id="intro">
+        <div class="intro-card">
+          <p class="eyebrow">BAIE DE QUIBERON · 3,2 NM</p>
+          <h1>Prends le vent.<br><em>Gagne la ligne.</em></h1>
+          <p>Une régate courte pour apprendre à remonter au vent, virer de bord et exploiter les meilleures allures.</p>
+          <div class="course-brief">
+            <span><b>01</b> Franchis la ligne après le départ</span>
+            <span><b>02</b> Passe les deux bouées dans l’ordre</span>
+            <span><b>03</b> Reviens couper la ligne d’arrivée</span>
+          </div>
+          <button id="startButton" class="primary-button">PRENDRE LA BARRE <span>→</span></button>
+          <small class="key-hint">Clavier : ← → ou A D · Espace pour virer</small>
+        </div>
+      </div>
+
+      <div class="finish-panel hidden" id="finishPanel">
+        <div class="finish-card">
+          <p class="eyebrow">PARCOURS TERMINÉ</p>
+          <h2 id="finishTime">00:00.0</h2>
+          <p id="finishResult">Temps de référence enregistré.</p>
+          <button id="restartButton" class="primary-button">RECOURIR <span>↻</span></button>
+        </div>
+      </div>
+
+      <div class="mobile-controls" aria-label="Commandes de direction">
+        <button data-turn="-1" aria-label="Tourner à bâbord">←<small>BÂBORD</small></button>
+        <button id="tackButton" class="tack" aria-label="Virer de bord">VIRER</button>
+        <button data-turn="1" aria-label="Tourner à tribord">→<small>TRIBORD</small></button>
+      </div>
+    </section>
+
+    <aside class="instrument-panel">
+      <div class="instrument-heading">
+        <span>TABLEAU DE BORD</span>
+        <span id="legCounter">DÉPART · 0/3</span>
+      </div>
+
+      <section class="wind-instrument">
+        <div class="compass" id="compass">
+          <span class="north">N</span><span class="east">E</span><span class="south">S</span><span class="west">O</span>
+          <div class="no-go"></div>
+          <div class="wind-arrow" id="windArrow">↓</div>
+          <div class="boat-icon">▲</div>
+        </div>
+        <div class="wind-copy"><small>VENT RÉEL</small><strong><span id="windSpeed">12.0</span> <i>nd</i></strong><span id="windDirection">N · 002°</span></div>
+      </section>
+
+      <div class="data-grid">
+        <div><small>VITESSE</small><strong><span id="boatSpeed">0.0</span><i>nd</i></strong></div>
+        <div><small>CAP</small><strong><span id="heading">000</span><i>°</i></strong></div>
+        <div><small>ANGLE AU VENT</small><strong><span id="windAngle">0</span><i>°</i></strong></div>
+        <div><small>ALLURE</small><strong class="sailing-mode" id="sailingMode">FACE AU VENT</strong></div>
+      </div>
+
+      <section class="polar-panel">
+        <div class="section-label"><span>RENDEMENT DES VOILES</span><b id="efficiency">8%</b></div>
+        <div class="efficiency-track"><span id="efficiencyBar"></span></div>
+        <p id="sailingTip">Écarte-toi du vent pour gonfler les voiles.</p>
+      </section>
+
+      <section class="next-mark">
+        <div class="section-label"><span>PROCHAINE MARQUE</span><b id="markDistance">—</b></div>
+        <strong id="markName">LIGNE DE DÉPART</strong>
+        <p id="markBearing">Relèvement 000°</p>
+      </section>
+
+      <footer>
+        <span>MEILLEUR TEMPS</span>
+        <strong id="bestTime">—</strong>
+      </footer>
+    </aside>
+  </main>
+  <script src="game.js"></script>
+</body>
+</html>
