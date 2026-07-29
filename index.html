@@ -12,31 +12,104 @@
     <section class="chart-panel" aria-label="Zone de navigation">
       <canvas id="gameCanvas"></canvas>
 
-      <div class="topbar">
+      <header class="common-banner">
         <div class="brand">
           <span class="brand-mark">É</span>
-          <div><strong>ÉCUME</strong><small>RÉGATE CÔTIÈRE 01</small></div>
+          <div><strong>ÉCUME</strong><small>RÉGATE CÔTIÈRE</small></div>
         </div>
+        <div class="banner-data course-data">
+          <small>PARCOURS</small>
+          <strong id="bannerCourse">TRIANGLE DE QUIBERON</strong>
+          <span id="bannerLeg">DÉPART · 0/2</span>
+        </div>
+        <div class="banner-data wind-data">
+          <small>VENT RÉEL</small>
+          <strong><span id="bannerWindSpeed">12.0</span> <i>nd</i></strong>
+          <span id="bannerWindDirection">N · 004°</span>
+        </div>
+        <div class="top-three" id="topThree" aria-label="Trois premiers"></div>
         <div class="race-clock">
           <small id="phaseLabel">EN ATTENTE</small>
           <strong id="timer">00:00.0</strong>
         </div>
+        <button class="pause-button" id="pauseButton" aria-label="Mettre en pause">Ⅱ<small>PAUSE</small></button>
+      </header>
+
+      <div class="wind-compass" id="windCompass" aria-label="Compas du vent réel">
+        <span class="compass-n">N</span><span class="compass-e">E</span><span class="compass-s">S</span><span class="compass-w">O</span>
+        <div class="compass-arrow" id="compassWindArrow">↓</div>
+        <div class="compass-center"><strong><span id="compassWindSpeed">12.0</span></strong><small>ND</small></div>
+        <div class="gust-label hidden" id="gustLabel">RAFALE +0.0 ND</div>
       </div>
 
       <div class="message" id="message" aria-live="polite"></div>
 
+      <section class="player-hud player-left hidden" id="leftHud" style="--player-color:#62e7ff">
+        <div class="player-heading">
+          <div><small>BARRE GAUCHE</small><strong>JOUEUR GAUCHE</strong></div>
+          <b id="leftRank">1/4</b>
+        </div>
+        <div class="player-instruments">
+          <div><small>VITESSE</small><strong><span id="leftSpeed">0.0</span><i> nd</i></strong></div>
+          <div><small>CAP</small><strong><span id="leftHeading">000</span><i>°</i></strong></div>
+          <div><small>ANGLE VENT</small><strong><span id="leftWindAngle">0</span><i>°</i></strong></div>
+          <div><small>ALLURE</small><strong class="mode" id="leftMode">FACE AU VENT</strong></div>
+        </div>
+        <div class="player-target"><span><small>PROCHAINE MARQUE</small><strong id="leftMark">LIGNE DE DÉPART</strong></span><span><b id="leftDistance">—</b><small id="leftBearing">000°</small></span></div>
+        <div class="player-efficiency"><span><small>RENDEMENT</small><b id="leftEfficiency">8%</b></span><div><i id="leftEfficiencyBar"></i></div><strong id="leftPower">100%</strong></div>
+        <div class="hud-sails">
+          <button data-player="0" data-sail="main"><kbd>&amp;</kbd><span>GRAND-VOILE<small id="leftMainStatus">HISSÉE</small></span></button>
+          <button data-player="0" data-sail="jib"><kbd>é</kbd><span>VOILE AVANT<small id="leftJibStatus">HISSÉE</small></span></button>
+          <button data-player="0" data-sail="spi"><kbd>"</kbd><span>SPI<small id="leftSpiStatus">AFFALÉE</small></span></button>
+        </div>
+        <div class="control-reminder"><span>W / C <small>DIRECTION</small></span><span>X <small>VIREMENT</small></span></div>
+      </section>
+
+      <section class="player-hud player-right hidden" id="rightHud" style="--player-color:#ff784f">
+        <div class="player-heading">
+          <div><small>BARRE DROITE</small><strong>JOUEUR DROITE</strong></div>
+          <b id="rightRank">2/4</b>
+        </div>
+        <div class="player-instruments">
+          <div><small>VITESSE</small><strong><span id="rightSpeed">0.0</span><i> nd</i></strong></div>
+          <div><small>CAP</small><strong><span id="rightHeading">000</span><i>°</i></strong></div>
+          <div><small>ANGLE VENT</small><strong><span id="rightWindAngle">0</span><i>°</i></strong></div>
+          <div><small>ALLURE</small><strong class="mode" id="rightMode">FACE AU VENT</strong></div>
+        </div>
+        <div class="player-target"><span><small>PROCHAINE MARQUE</small><strong id="rightMark">LIGNE DE DÉPART</strong></span><span><b id="rightDistance">—</b><small id="rightBearing">000°</small></span></div>
+        <div class="player-efficiency"><span><small>RENDEMENT</small><b id="rightEfficiency">8%</b></span><div><i id="rightEfficiencyBar"></i></div><strong id="rightPower">100%</strong></div>
+        <div class="hud-sails">
+          <button data-player="1" data-sail="main"><kbd>;</kbd><span>GRAND-VOILE<small id="rightMainStatus">HISSÉE</small></span></button>
+          <button data-player="1" data-sail="jib"><kbd>:</kbd><span>VOILE AVANT<small id="rightJibStatus">HISSÉE</small></span></button>
+          <button data-player="1" data-sail="spi"><kbd>!</kbd><span>SPI<small id="rightSpiStatus">AFFALÉE</small></span></button>
+        </div>
+        <div class="control-reminder"><span>← / → <small>DIRECTION</small></span><span>↓ <small>VIREMENT</small></span></div>
+      </section>
+
       <div class="intro" id="intro">
         <div class="intro-card">
-          <p class="eyebrow">BAIE DE QUIBERON · 3,2 NM</p>
+          <p class="eyebrow" id="courseMeta">BAIE DE QUIBERON · 3,2 NM</p>
           <h1>Prends le vent.<br><em>Gagne la ligne.</em></h1>
-          <p>Une régate courte pour apprendre à remonter au vent, virer de bord et exploiter les meilleures allures.</p>
-          <div class="course-brief">
-            <span><b>01</b> Franchis la ligne après le départ</span>
-            <span><b>02</b> Passe les deux bouées dans l’ordre</span>
-            <span><b>03</b> Reviens couper la ligne d’arrivée</span>
+          <p id="courseDescription">Une régate courte pour apprendre à remonter au vent, virer de bord et exploiter les meilleures allures.</p>
+          <div class="setup-grid">
+            <div class="setup-group"><small>MODE</small><div class="choice-row"><button class="choice active" data-mode="solo">SOLO</button><button class="choice" data-mode="local">2 JOUEURS</button></div></div>
+            <div class="setup-group fleet-choice hidden" id="fleetChoice"><small>FLOTTE LOCALE</small><div class="choice-row"><button class="choice active" data-fleet="ai">AVEC IA</button><button class="choice" data-fleet="duel">DUEL</button></div></div>
+            <div class="setup-group"><small>DIFFICULTÉ</small><div class="choice-row"><button class="choice" data-difficulty="easy">MOUSSE</button><button class="choice active" data-difficulty="normal">RÉGATIER</button><button class="choice" data-difficulty="expert">EXPERT</button></div></div>
+            <div class="setup-group course-picker"><small>PARCOURS</small><div class="choice-row"><button class="choice active" data-course="triangle">TRIANGLE</button><button class="choice" data-course="olympic">BANANE</button><button class="choice" data-course="coastal">RAID</button><button class="choice" data-course="sprint">SPRINT</button></div></div>
           </div>
           <button id="startButton" class="primary-button">PRENDRE LA BARRE <span>→</span></button>
-          <small class="key-hint">Clavier : ← → ou A D · Espace pour virer</small>
+          <small class="key-hint" id="keyHint">Joueur gauche : W C · X · &amp; é "</small>
+        </div>
+      </div>
+
+      <div class="pause-panel hidden" id="pausePanel">
+        <div class="menu-card">
+          <p class="eyebrow">COURSE SUSPENDUE</p>
+          <h2>Pause.</h2>
+          <button id="resumeButton" class="primary-button">REPRENDRE <span>→</span></button>
+          <button id="pauseRestartButton" class="secondary-button">RECOMMENCER</button>
+          <button id="pauseHomeButton" class="secondary-button">RETOUR ACCUEIL</button>
+          <small>Échap ou P pour reprendre</small>
         </div>
       </div>
 
@@ -45,57 +118,23 @@
           <p class="eyebrow">PARCOURS TERMINÉ</p>
           <h2 id="finishTime">00:00.0</h2>
           <p id="finishResult">Temps de référence enregistré.</p>
-          <button id="restartButton" class="primary-button">RECOURIR <span>↻</span></button>
+          <div class="results" id="results"></div>
+          <button id="restartButton" class="primary-button">REJOUER <span>↻</span></button>
+          <button id="homeButton" class="secondary-button">RETOUR ACCUEIL</button>
         </div>
       </div>
 
-      <div class="mobile-controls" aria-label="Commandes de direction">
-        <button data-turn="-1" aria-label="Tourner à bâbord">←<small>BÂBORD</small></button>
+      <div class="mobile-controls mobile-left" aria-label="Commandes du joueur gauche">
+        <button data-player="0" data-turn="-1" aria-label="Tourner à bâbord">←<small>BÂBORD</small></button>
         <button id="tackButton" class="tack" aria-label="Virer de bord">VIRER</button>
-        <button data-turn="1" aria-label="Tourner à tribord">→<small>TRIBORD</small></button>
+        <button data-player="0" data-turn="1" aria-label="Tourner à tribord">→<small>TRIBORD</small></button>
+      </div>
+      <div class="mobile-controls mobile-right" aria-label="Commandes du joueur droite">
+        <button data-player="1" data-turn="-1" aria-label="Tourner à bâbord">←<small>BÂBORD</small></button>
+        <button id="rightTackButton" class="tack" aria-label="Virer de bord">VIRER</button>
+        <button data-player="1" data-turn="1" aria-label="Tourner à tribord">→<small>TRIBORD</small></button>
       </div>
     </section>
-
-    <aside class="instrument-panel">
-      <div class="instrument-heading">
-        <span>TABLEAU DE BORD</span>
-        <span id="legCounter">DÉPART · 0/3</span>
-      </div>
-
-      <section class="wind-instrument">
-        <div class="compass" id="compass">
-          <span class="north">N</span><span class="east">E</span><span class="south">S</span><span class="west">O</span>
-          <div class="no-go"></div>
-          <div class="wind-arrow" id="windArrow">↓</div>
-          <div class="boat-icon">▲</div>
-        </div>
-        <div class="wind-copy"><small>VENT RÉEL</small><strong><span id="windSpeed">12.0</span> <i>nd</i></strong><span id="windDirection">N · 002°</span></div>
-      </section>
-
-      <div class="data-grid">
-        <div><small>VITESSE</small><strong><span id="boatSpeed">0.0</span><i>nd</i></strong></div>
-        <div><small>CAP</small><strong><span id="heading">000</span><i>°</i></strong></div>
-        <div><small>ANGLE AU VENT</small><strong><span id="windAngle">0</span><i>°</i></strong></div>
-        <div><small>ALLURE</small><strong class="sailing-mode" id="sailingMode">FACE AU VENT</strong></div>
-      </div>
-
-      <section class="polar-panel">
-        <div class="section-label"><span>RENDEMENT DES VOILES</span><b id="efficiency">8%</b></div>
-        <div class="efficiency-track"><span id="efficiencyBar"></span></div>
-        <p id="sailingTip">Écarte-toi du vent pour gonfler les voiles.</p>
-      </section>
-
-      <section class="next-mark">
-        <div class="section-label"><span>PROCHAINE MARQUE</span><b id="markDistance">—</b></div>
-        <strong id="markName">LIGNE DE DÉPART</strong>
-        <p id="markBearing">Relèvement 000°</p>
-      </section>
-
-      <footer>
-        <span>MEILLEUR TEMPS</span>
-        <strong id="bestTime">—</strong>
-      </footer>
-    </aside>
   </main>
   <script src="game.js"></script>
 </body>
