@@ -272,13 +272,13 @@ function updateFullscreenButton() {
 async function enterFullscreen() {
   if (isFullscreen()) return;
   const root = document.documentElement;
+  const request = root.requestFullscreen || root.webkitRequestFullscreen || root.msRequestFullscreen;
   try {
-    if (root.requestFullscreen) await root.requestFullscreen();
-    else if (root.webkitRequestFullscreen) await root.webkitRequestFullscreen();
-    else throw new Error('Fullscreen API unavailable');
+    if (!request) throw new Error('Fullscreen API unavailable');
+    await request.call(root);
+    updateFullscreenButton();
   } catch {
-    ui.fullscreenButton.textContent = 'PLEIN ÉCRAN NON DISPONIBLE';
-    ui.fullscreenButton.disabled = true;
+    ui.fullscreenButton.textContent = 'PLEIN ÉCRAN REFUSÉ · RÉESSAYER';
   }
 }
 
