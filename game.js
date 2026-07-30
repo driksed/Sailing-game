@@ -4,12 +4,12 @@ const ctx = canvas.getContext('2d');
 const ui = Object.fromEntries([
   'intro', 'startButton', 'restartButton', 'homeButton', 'finishPanel', 'finishTime',
   'finishResult', 'results', 'timer', 'phaseLabel', 'message', 'fleetChoice', 'courseMeta',
-  'courseDescription', 'keyHint', 'tackButton', 'rightTackButton', 'leftHud', 'rightHud', 'bannerCourse',
+  'courseDescription', 'keyHint', 'fullscreenButton', 'tackButton', 'rightTackButton', 'leftHud', 'rightHud', 'bannerCourse',
   'bannerLeg', 'bannerWindDirection', 'topThree', 'pauseButton',
   'pausePanel', 'resumeButton', 'pauseRestartButton', 'pauseHomeButton',
   'windCompass', 'compassWindArrow', 'compassWindSpeed', 'gustLabel',
   'rotatePrompt', 'leftHudToggle', 'rightHudToggle', 'leftTableTime', 'leftTableWind',
-  'rightTableTime', 'rightTableWind',
+  'rightTableTime', 'rightTableWind', 'leftPenaltyValue', 'rightPenalty', 'rightPenaltyValue',
   'leftRank', 'leftSpeed', 'leftHeading', 'leftWindAngle', 'leftMode', 'leftMark',
   'leftDistance', 'leftBearing', 'leftEfficiency', 'leftEfficiencyBar', 'leftPower',
   'leftMainStatus', 'leftJibStatus', 'leftSpiStatus',
@@ -127,8 +127,10 @@ function signedAngle(angle) { return ((angle + 180) % 360 + 360) % 360 - 180; }
 function distance(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
 function bearing(from, to) { return normalize(Math.atan2(to.x - from.x, from.y - to.y) * 180 / Math.PI); }
 function formatTime(seconds) {
-  const mins = Math.floor(seconds / 60);
-  return `${String(mins).padStart(2, '0')}:${(seconds - mins * 60).toFixed(1).padStart(4, '0')}`;
+  const tenths = Math.max(0, Math.round(seconds * 10));
+  const mins = Math.floor(tenths / 600);
+  const remainder = (tenths - mins * 600) / 10;
+  return `${String(mins).padStart(2, '0')}:${remainder.toFixed(1).padStart(4, '0')}`;
 }
 
 function bestKey() { return `ecume-best-${setup.course}`; }
@@ -153,7 +155,7 @@ function makeBoat(index, type, playerIndex = -1) {
     previous: { x: course.spawn.x + column * 42, y: course.spawn.y + row * 35 },
     heading: normalize(course.spawn.heading + column * 2), speed: 0, heel: 0, wake: [],
     sails: { main: { deployed: true, current: 1 }, jib: { deployed: true, current: 1 }, spi: { deployed: false, current: 0 } },
-    started: false, leg: 0, penalty: 0, finishTime: null, tackTarget: null,
+    started: false, leg: 0, penalty: 0, rawFinishTime: null, finishTime: null, tackTarget: null,
     aiClock: Math.random() * .5, aiHeading: course.spawn.heading, aiRouteHeading: course.spawn.heading, sailClock: 0,
     aiLane: type === 'ai' ? (index % 3) - 1 : 0,
     roundingState: null
@@ -254,6 +256,30 @@ function updateRotatePrompt() {
   const mobilePortrait = window.matchMedia('(max-width: 1024px) and (orientation: portrait), (pointer: coarse) and (orientation: portrait)').matches;
   const shouldShow = setup.mode === 'local' && ['countdown', 'racing'].includes(game.state) && mobilePortrait;
   ui.rotatePrompt.classList.toggle('hidden', !shouldShow);
+}
+
+function isFullscreen() {
+  return Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+}
+
+function updateFullscreenButton() {
+  const active = isFullscreen();
+  ui.fullscreenButton.classList.toggle('hidden', active);
+  ui.fullscreenButton.setAttribute('aria-pressed', String(active));
+  resize();
+}
+
+async function enterFullscreen() {
+  if (isFullscreen()) return;
+  const root = document.documentElement;
+  try {
+    if (root.requestFullscreen) await root.requestFullscreen();
+    else if (root.webkitRequestFullscreen) await root.webkitRequestFullscreen();
+    else throw new Error('Fullscreen API unavailable');
+  } catch {
+    ui.fullscreenButton.textContent = 'PLEIN ÉCRAN NON DISPONIBLE';
+    ui.fullscreenButton.disabled = true;
+  }
 }
 
 function toggleMobileHud(playerIndex) {
@@ -560,7 +586,8 @@ function checkCourse(boat) {
       }
     }
   } else if (crossedGate(boat.previous, boat, game.course.finish, 1)) {
-    boat.finishTime = game.elapsed + boat.penalty;
+    boat.rawFinishTime = game.elapsed;
+    boat.finishTime = boat.rawFinishTime + boat.penalty;
     boat.speed *= .55;
     if (boat.type === 'player') handleHumanFinish(boat);
   }
@@ -650,8 +677,10 @@ function showResults() {
   ui.finishTime.textContent = formatTime(primary.finishTime);
   ui.finishResult.textContent = ordered[0] === primary ? 'Victoire ! Tu remportes cette régate.' : `${ordered.indexOf(primary) + 1}e place pour ${primary.name}.`;
   ui.results.innerHTML = ordered.map((boat, index) => {
-    const value = boat.finishTime === null ? 'DNF' : formatTime(boat.finishTime);
-    return `<div class="result-row ${boat.type === 'player' ? 'player' : ''}" style="color:${boat.color}"><span>${index + 1}</span><span>${boat.name}</span><span>${value}</span></div>`;
+    const value = boat.finishTime === null
+      ? '<span class="result-breakdown">DNF</span>'
+      : `<span class="result-breakdown"><span>${formatTime(boat.rawFinishTime)}</span><b>+${boat.penalty} s</b><strong>= ${formatTime(boat.finishTime)}</strong></span>`;
+    return `<div class="result-row ${boat.type === 'player' ? 'player' : ''}" style="color:${boat.color}"><span>${index + 1}</span><span>${boat.name}</span>${value}</div>`;
   }).join('');
   ui.finishPanel.classList.remove('hidden');
 }
@@ -895,7 +924,7 @@ function updatePlayerHud(side, boat, ordered) {
   const target = nextTarget(boat);
   const spiWarning = boat.sails.spi.current > .15 && Math.abs(angle) < 75;
 
-  ui[`${side}Rank`].textContent = `${ordered.indexOf(boat) + 1}/${game.boats.length}${boat.penalty ? ` · +${boat.penalty}S` : ''}`;
+  ui[`${side}Rank`].textContent = `${ordered.indexOf(boat) + 1}/${game.boats.length}`;
   ui[`${side}Speed`].textContent = boat.speed.toFixed(1);
   ui[`${side}Heading`].textContent = String(Math.round(boat.heading) % 360).padStart(3, '0');
   ui[`${side}WindAngle`].textContent = String(Math.round(Math.abs(angle)));
@@ -924,6 +953,9 @@ function updateUI() {
   if (!primary) return;
   const ordered = standings();
   ui.timer.textContent = formatTime(game.elapsed);
+  ui.leftPenaltyValue.textContent = `+${game.humans[0]?.penalty || 0} S`;
+  ui.rightPenaltyValue.textContent = `+${game.humans[1]?.penalty || 0} S`;
+  ui.rightPenalty.classList.toggle('hidden', setup.mode !== 'local');
   ui.phaseLabel.textContent = game.state === 'countdown' ? `DÉPART · ${Math.max(0, Math.ceil(game.countdown))}` : game.state === 'racing' ? 'EN COURSE' : game.state === 'paused' ? 'PAUSE' : game.state === 'finished' ? 'TERMINÉ' : 'EN ATTENTE';
   ui.bannerCourse.textContent = game.course.name.toUpperCase();
   ui.bannerLeg.textContent = `${primary.started ? 'PARCOURS' : 'DÉPART'} · ${Math.max(0, primary.leg - 1)}/${game.course.marks.length}`;
@@ -1024,7 +1056,10 @@ window.addEventListener('keyup', event => {
 });
 
 window.addEventListener('resize', resize);
+document.addEventListener('fullscreenchange', updateFullscreenButton);
+document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
 ui.startButton.addEventListener('click', startGame);
+ui.fullscreenButton.addEventListener('click', enterFullscreen);
 ui.restartButton.addEventListener('click', restartRace);
 ui.homeButton.addEventListener('click', returnHome);
 ui.pauseButton.addEventListener('click', togglePause);

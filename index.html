@@ -15,7 +15,7 @@
       <header class="common-banner">
         <div class="brand">
           <span class="brand-mark">É</span>
-          <div><strong>ÉCUME</strong><small>RÉGATE CÔTIÈRE · V0.5</small></div>
+          <div><strong>ÉCUME</strong><small>RÉGATE CÔTIÈRE · V0.6</small></div>
         </div>
         <div class="banner-data course-data">
           <small>PARCOURS</small>
@@ -34,6 +34,10 @@
         <div class="race-clock">
           <small id="phaseLabel">EN ATTENTE</small>
           <strong id="timer">00:00.0</strong>
+          <div class="clock-penalties" aria-label="Pénalités en cours">
+            <span class="penalty-left"><b>JG</b><i id="leftPenaltyValue">+0 S</i></span>
+            <span class="penalty-right hidden" id="rightPenalty"><b>JD</b><i id="rightPenaltyValue">+0 S</i></span>
+          </div>
         </div>
         <button class="pause-button" id="pauseButton" aria-label="Mettre en pause">Ⅱ<small>PAUSE</small></button>
       </header>
@@ -91,7 +95,7 @@
       <div class="intro" id="intro">
         <div class="intro-card">
           <p class="eyebrow" id="courseMeta">BAIE DE QUIBERON · 3,2 NM</p>
-          <span class="version-badge">VERSION 0.5</span>
+          <span class="version-badge">VERSION 0.6</span>
           <h1>Prends le vent.<br><em>Gagne la ligne.</em></h1>
           <p id="courseDescription">Une régate courte pour apprendre à remonter au vent, virer de bord et exploiter les meilleures allures.</p>
           <div class="setup-grid">
@@ -101,6 +105,7 @@
             <div class="setup-group course-picker"><small>PARCOURS</small><div class="choice-row"><button class="choice active" data-course="triangle">TRIANGLE</button><button class="choice" data-course="olympic">BANANE</button><button class="choice" data-course="coastal">RAID</button><button class="choice" data-course="sprint">SPRINT</button></div></div>
           </div>
           <button id="startButton" class="primary-button">PRENDRE LA BARRE <span>→</span></button>
+          <button id="fullscreenButton" class="fullscreen-button" type="button" aria-pressed="false">PLEIN ÉCRAN CONSEILLÉ</button>
           <small class="key-hint" id="keyHint">Joueur gauche : W C · X · &amp; é "</small>
         </div>
       </div>

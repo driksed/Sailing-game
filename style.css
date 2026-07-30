@@ -31,6 +31,10 @@ button { font:inherit; }
 .leader small { color:#91a8ad; font:500 8px 'DM Mono',monospace; }
 .race-clock { display:flex; flex-direction:column; justify-content:center; padding:10px 17px; text-align:right; }
 .race-clock strong { font:500 23px 'DM Mono',monospace; letter-spacing:-.06em; }
+.clock-penalties { display:flex; justify-content:flex-end; gap:7px; margin-top:2px; }
+.clock-penalties > span { display:flex; gap:3px; font:500 7px 'DM Mono',monospace; }
+.clock-penalties b { font-weight:500; }.clock-penalties i { font-style:normal; }
+.clock-penalties .penalty-left { color:var(--cyan); }.clock-penalties .penalty-right { color:#ff784f; }
 .pause-button { display:grid; place-items:center; align-content:center; gap:2px; border:0; background:transparent; color:white; cursor:pointer; font-weight:800; }
 .pause-button:hover { background:var(--orange); }
 .pause-button small { font:500 7px 'DM Mono',monospace; letter-spacing:.1em; }
@@ -103,13 +107,15 @@ button { font:inherit; }
 .choice.active { border-color:var(--orange); background:var(--orange); color:white; }.choice:disabled { opacity:.35; cursor:not-allowed; }
 .primary-button { display:flex; justify-content:space-between; align-items:center; width:100%; padding:16px 18px; border:0; background:var(--ink); color:white; cursor:pointer; font-size:10px; font-weight:800; letter-spacing:.15em; }
 .primary-button:hover { background:var(--orange); }.primary-button span { font-size:18px; }
+.fullscreen-button { display:none; width:100%; margin-top:7px; padding:8px 10px; border:1px solid #9eb0b0; background:transparent; color:#587075; cursor:pointer; font:700 7px 'DM Mono',monospace; letter-spacing:.1em; }
+.fullscreen-button:hover { border-color:var(--orange); color:var(--orange); }.fullscreen-button:disabled { opacity:.55; cursor:default; }
 .secondary-button { width:100%; margin-top:7px; padding:12px; border:1px solid #9eb0b0; background:transparent; color:#48636a; cursor:pointer; font-size:9px; font-weight:800; letter-spacing:.12em; }
 .secondary-button:hover { border-color:var(--orange); color:var(--orange); }
 .key-hint, .menu-card > small { display:block; margin-top:12px; color:#6e8386; text-align:center; font:400 8px 'DM Mono',monospace; }
 .menu-card { width:min(390px,100%); text-align:center; }.menu-card h2 { margin:0 0 25px; font-size:48px; letter-spacing:-.06em; }
 .menu-card button:focus-visible { outline:3px solid var(--orange); outline-offset:3px; }
 .finish-card { text-align:center; }.finish-card h2 { margin:7px 0; color:var(--orange); font:500 clamp(42px,8vw,72px) 'DM Mono',monospace; letter-spacing:-.08em; }.finish-card > p:not(.eyebrow) { margin:0 0 20px; color:#4f676c; font-size:12px; }
-.results { margin:16px 0; border-top:1px solid #cad4d1; text-align:left; }.result-row { display:grid; grid-template-columns:28px 1fr auto; gap:10px; padding:8px 4px; border-bottom:1px solid #d6ddda; font:500 9px 'DM Mono',monospace; }.result-row.player { font-weight:700; }.result-row span:last-child { color:#607579; }
+.results { margin:16px 0; border-top:1px solid #cad4d1; text-align:left; }.result-row { display:grid; grid-template-columns:28px minmax(90px,1fr) auto; align-items:center; gap:10px; padding:8px 4px; border-bottom:1px solid #d6ddda; font:500 9px 'DM Mono',monospace; }.result-row.player { font-weight:700; }.result-breakdown { display:flex; align-items:center; justify-content:flex-end; gap:5px; color:#607579; white-space:nowrap; }.result-breakdown b { color:var(--orange); font-weight:500; }.result-breakdown strong { color:var(--ink); font-weight:700; }
 .mobile-controls { position:absolute; z-index:5; left:50%; bottom:calc(14px + env(safe-area-inset-bottom)); translate:-50%; display:none; gap:6px; }.mobile-controls button { display:grid; place-items:center; min-width:75px; height:54px; border:1px solid rgba(255,255,255,.3); background:rgba(7,29,38,.85); color:white; font-size:18px; touch-action:none; }.mobile-controls small { display:block; font:500 6px 'DM Mono',monospace; }.mobile-controls .tack { color:var(--lime); font-size:8px; font-weight:700; }.mobile-right { display:none; }
 
 @media (max-width:1024px) {
@@ -134,6 +140,7 @@ button { font:inherit; }
   .local-mode .mobile-left { left:4px; translate:0; }.local-mode .mobile-right { display:flex; left:auto; right:4px; translate:0; }
   .local-mode .mobile-controls { gap:2px; }.local-mode .mobile-controls button { min-width:39px; width:39px; height:48px; }.local-mode .mobile-controls small { display:none; }
   .setup-grid { grid-template-columns:1fr; gap:9px; }.setup-group.course-picker { grid-column:auto; }
+  .result-row { grid-template-columns:24px 1fr; }.result-breakdown { grid-column:2; justify-content:flex-start; flex-wrap:wrap; }
 }
 
 @media (max-width:1024px) and (orientation:portrait) {
@@ -142,13 +149,21 @@ button { font:inherit; }
 
 @media (pointer:coarse) {
   .mobile-left { display:flex; }
+  .fullscreen-button { display:block; }
 }
+
+@media (max-width:650px) { .fullscreen-button { display:block; } }
 
 @media (max-width:1024px) and (orientation:landscape), (pointer:coarse) and (orientation:landscape) {
   html,body { overflow:hidden; }
-  .local-mode .common-banner { inset:auto; left:50%; top:50%; translate:-50% -50%; display:grid; grid-template-columns:118px 70px 38px; width:226px; min-height:62px; border:1px solid var(--line); }
+  .local-mode .game-shell,.local-mode .chart-panel { min-height:100dvh; }
+  .local-mode .common-banner { inset:0; display:block; width:auto; min-height:0; background:transparent; border:0; backdrop-filter:none; pointer-events:none; }
   .local-mode .common-banner .brand,.local-mode .common-banner .course-data,.local-mode .common-banner .top-three { display:none; }
-  .local-mode .common-banner .wind-compass { flex-basis:48px; width:48px; height:48px; }.local-mode .common-banner .banner-wind { gap:4px; padding:3px; }.local-mode .common-banner .wind-readout strong { font-size:12px; }.local-mode .common-banner .race-clock { padding:5px; }.local-mode .common-banner .race-clock strong { font-size:15px; }
+  .local-mode .common-banner .banner-wind { position:absolute; left:calc(max(4px,env(safe-area-inset-left,0px)) + 34px); top:50%; width:118px; min-height:68px; gap:4px; padding:3px; border:1px solid var(--line); background:rgba(7,29,38,.92); transform:translate(-50%,-50%) rotate(-90deg); }
+  .local-mode .common-banner .wind-compass { flex-basis:48px; width:48px; height:48px; }.local-mode .common-banner .wind-readout strong { font-size:12px; }
+  .local-mode .common-banner .race-clock { position:absolute; top:50%; right:calc(max(4px,env(safe-area-inset-right,0px)) + 34px); width:118px; min-height:68px; padding:5px 8px; border:1px solid var(--line); background:rgba(7,29,38,.92); text-align:center; transform:translate(50%,-50%) rotate(90deg); }
+  .local-mode .common-banner .race-clock strong { font-size:15px; }.local-mode .common-banner .clock-penalties { flex-direction:column; align-items:center; gap:1px; margin-top:1px; }.local-mode .common-banner .clock-penalties > span { font-size:6px; }
+  .local-mode .common-banner .pause-button { position:absolute; left:50%; top:50%; width:38px; height:38px; border:1px solid var(--line); border-radius:50%; background:rgba(7,29,38,.88); pointer-events:auto; transform:translate(-50%,-50%); }
   .local-mode .player-hud { top:auto; bottom:0; left:42vw; right:auto; display:grid; grid-template-columns:88px minmax(150px,1fr) 120px; width:58vw; height:calc(68px + env(safe-area-inset-bottom)); padding-right:max(4px,env(safe-area-inset-right)); border-top:2px solid var(--player-color); box-shadow:none; }
   .local-mode .player-right { top:0; bottom:auto; left:0; height:calc(68px + env(safe-area-inset-top)); padding-left:max(4px,env(safe-area-inset-right)); padding-right:max(4px,env(safe-area-inset-left)); transform:rotate(180deg); }
   .local-mode .player-heading { padding:5px 7px; border-right:1px solid var(--line); border-bottom:0; }.local-mode .player-heading > div > small { display:none; }.local-mode .player-heading strong { font-size:8px; }.local-mode .player-heading > b { font-size:11px; }.local-mode .table-shared { display:flex; flex-direction:row; gap:5px; margin-top:3px; }.local-mode .table-shared i { color:#91a8ad; font:normal 6px 'DM Mono',monospace; }
