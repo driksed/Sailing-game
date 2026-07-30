@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#071d26">
   <title>Écume — Régate côtière</title>
-  <link rel="stylesheet" href="style.css?v=0.6.1">
+  <link rel="stylesheet" href="style.css?v=0.6.2">
 </head>
 <body>
   <main class="game-shell">
@@ -15,7 +15,7 @@
       <header class="common-banner">
         <div class="brand">
           <span class="brand-mark">É</span>
-          <div><strong>ÉCUME</strong><small>RÉGATE CÔTIÈRE · V0.6.1</small></div>
+          <div><strong>ÉCUME</strong><small>RÉGATE CÔTIÈRE · V0.6.2</small></div>
         </div>
         <div class="banner-data course-data">
           <small>PARCOURS</small>
@@ -41,6 +41,12 @@
         </div>
         <button class="pause-button" id="pauseButton" aria-label="Mettre en pause">Ⅱ<small>PAUSE</small></button>
       </header>
+
+      <div class="map-zoom hidden" id="mapZoom" aria-label="Zoom de la carte">
+        <button id="zoomOutButton" type="button" aria-label="Réduire le zoom">−</button>
+        <button class="zoom-fit" id="zoomFitButton" type="button" aria-label="Cadrer tout le circuit"><strong id="zoomLabel">1×</strong><small>CADRER</small></button>
+        <button id="zoomInButton" type="button" aria-label="Augmenter le zoom">+</button>
+      </div>
 
       <div class="message" id="message" aria-live="polite"></div>
 
@@ -95,7 +101,7 @@
       <div class="intro" id="intro">
         <div class="intro-card">
           <p class="eyebrow" id="courseMeta">BAIE DE QUIBERON · 3,2 NM</p>
-          <span class="version-badge">VERSION 0.6.1</span>
+          <span class="version-badge">VERSION 0.6.2</span>
           <h1>Prends le vent.<br><em>Gagne la ligne.</em></h1>
           <p id="courseDescription">Une régate courte pour apprendre à remonter au vent, virer de bord et exploiter les meilleures allures.</p>
           <div class="setup-grid">
@@ -144,6 +150,6 @@
       </div>
     </section>
   </main>
-  <script src="game.js?v=0.6.1"></script>
+  <script src="game.js?v=0.6.2"></script>
 </body>
 </html>

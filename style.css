@@ -53,6 +53,9 @@ button { font:inherit; }
 
 .message { position:absolute; z-index:4; left:50%; top:18%; translate:-50% -50%; color:white; opacity:0; pointer-events:none; text-align:center; text-shadow:0 3px 20px rgba(0,0,0,.25); font:800 clamp(24px,5vw,62px) Manrope,sans-serif; letter-spacing:-.05em; transition:opacity .18s; }
 .message.visible { opacity:1; }
+.map-zoom { position:absolute; z-index:6; left:50%; bottom:calc(76px + env(safe-area-inset-bottom,0px)); translate:-50%; display:flex; gap:3px; padding:3px; background:rgba(7,29,38,.9); border:1px solid var(--line); backdrop-filter:blur(8px); }
+.map-zoom button { display:grid; place-items:center; min-width:34px; height:34px; padding:0 8px; border:1px solid rgba(240,238,230,.22); background:transparent; color:white; cursor:pointer; font:500 15px 'DM Mono',monospace; touch-action:manipulation; }
+.map-zoom button:disabled { color:#587075; cursor:default; }.map-zoom .zoom-fit { min-width:52px; align-content:center; gap:0; }.map-zoom .zoom-fit strong { color:var(--lime); font-size:8px; }.map-zoom .zoom-fit small { color:#91a8ad; font:500 5px 'DM Mono',monospace; letter-spacing:.08em; }
 
 .player-hud { position:absolute; z-index:3; bottom:18px; width:min(355px,calc(50vw - 28px)); background:rgba(7,29,38,.92); border-top:3px solid var(--player-color); box-shadow:0 12px 30px rgba(0,0,0,.22); backdrop-filter:blur(8px); }
 .player-left { left:18px; }.player-right { right:18px; }
@@ -156,7 +159,7 @@ button { font:inherit; }
 
 @media (max-width:1024px) and (orientation:landscape), (pointer:coarse) and (orientation:landscape) {
   html,body { overflow:hidden; }
-  .local-mode .game-shell,.local-mode .chart-panel { min-height:100dvh; }
+  .game-shell,.chart-panel { min-height:100dvh; }
   .local-mode .common-banner { inset:0; display:block; width:auto; min-height:0; background:transparent; border:0; backdrop-filter:none; pointer-events:none; }
   .local-mode .common-banner .brand,.local-mode .common-banner .course-data,.local-mode .common-banner .top-three { display:none; }
   .local-mode .common-banner .banner-wind { position:absolute; left:calc(max(4px,env(safe-area-inset-left,0px)) + 34px); top:50%; width:118px; min-height:68px; gap:4px; padding:3px; border:1px solid var(--line); background:rgba(7,29,38,.92); transform:translate(-50%,-50%) rotate(-90deg); }
@@ -164,6 +167,7 @@ button { font:inherit; }
   .local-mode .common-banner .race-clock { position:absolute; top:50%; right:calc(max(4px,env(safe-area-inset-right,0px)) + 34px); width:118px; min-height:68px; padding:5px 8px; border:1px solid var(--line); background:rgba(7,29,38,.92); text-align:center; transform:translate(50%,-50%) rotate(90deg); }
   .local-mode .common-banner .race-clock strong { font-size:15px; }.local-mode .common-banner .clock-penalties { flex-direction:column; align-items:center; gap:1px; margin-top:1px; }.local-mode .common-banner .clock-penalties > span { font-size:6px; }
   .local-mode .common-banner .pause-button { position:absolute; left:50%; top:50%; width:38px; height:38px; border:1px solid var(--line); border-radius:50%; background:rgba(7,29,38,.88); pointer-events:auto; transform:translate(-50%,-50%); }
+  .local-mode .map-zoom { left:50%; top:calc(50% + 42px); bottom:auto; translate:-50% -50%; }
   .local-mode .player-hud { top:auto; bottom:0; left:42vw; right:auto; display:grid; grid-template-columns:88px minmax(150px,1fr) 120px; width:58vw; height:calc(68px + env(safe-area-inset-bottom)); padding-right:max(4px,env(safe-area-inset-right)); border-top:2px solid var(--player-color); box-shadow:none; }
   .local-mode .player-right { top:0; bottom:auto; left:0; height:calc(68px + env(safe-area-inset-top)); padding-left:max(4px,env(safe-area-inset-right)); padding-right:max(4px,env(safe-area-inset-left)); transform:rotate(180deg); }
   .local-mode .player-heading { padding:5px 7px; border-right:1px solid var(--line); border-bottom:0; }.local-mode .player-heading > div > small { display:none; }.local-mode .player-heading strong { font-size:8px; }.local-mode .player-heading > b { font-size:11px; }.local-mode .table-shared { display:flex; flex-direction:row; gap:5px; margin-top:3px; }.local-mode .table-shared i { color:#91a8ad; font:normal 6px 'DM Mono',monospace; }

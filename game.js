@@ -8,6 +8,7 @@ const ui = Object.fromEntries([
   'bannerLeg', 'bannerWindDirection', 'topThree', 'pauseButton',
   'pausePanel', 'resumeButton', 'pauseRestartButton', 'pauseHomeButton',
   'windCompass', 'compassWindArrow', 'compassWindSpeed', 'gustLabel',
+  'mapZoom', 'zoomOutButton', 'zoomFitButton', 'zoomInButton', 'zoomLabel',
   'rotatePrompt', 'leftHudToggle', 'rightHudToggle', 'leftTableTime', 'leftTableWind',
   'rightTableTime', 'rightTableWind', 'leftPenaltyValue', 'rightPenalty', 'rightPenaltyValue',
   'leftRank', 'leftSpeed', 'leftHeading', 'leftWindAngle', 'leftMode', 'leftMark',
@@ -107,7 +108,13 @@ const AI_COLORS = ['#b8a1ff', '#66e0b5', '#ffd166', '#ef7aa8', '#8dc6ff', '#f5a6
 const setup = { mode: 'solo', fleet: 'ai', difficulty: 'normal', course: 'triangle' };
 const input = [{ left: false, right: false }, { left: false, right: false }];
 const activeContacts = new Set();
-let view = { scale: 1, x: 0, y: 0, dpr: 1 };
+const ZOOM_LEVELS = [.8, 1, 1.2, 1.45];
+let cameraZoomIndex = 1;
+let view = {
+  scale: 1, fitScale: 1, zoom: 1, rotation: 0, dpr: 1,
+  worldX: WORLD.width / 2, worldY: WORLD.height / 2,
+  screenX: 0, screenY: 0, compact: false, tableMode: false
+};
 let lastFrame = performance.now();
 let lastUiUpdate = 0;
 let flashTimeout;
@@ -198,6 +205,7 @@ function buildFleet(state = 'idle') {
   ui.rightHudToggle.setAttribute('aria-expanded', 'false');
   input.forEach(keys => { keys.left = false; keys.right = false; });
   updateRotatePrompt();
+  requestAnimationFrame(resize);
   if (state === 'countdown') flash('5', 900);
 }
 
@@ -227,6 +235,7 @@ function togglePause() {
     ui.pausePanel.classList.add('hidden');
     ui.pauseButton.focus();
     updateRotatePrompt();
+    updateZoomControls();
     return;
   }
   if (!['countdown', 'racing'].includes(game.state)) return;
@@ -235,6 +244,7 @@ function togglePause() {
   clearInputs();
   ui.pausePanel.classList.remove('hidden');
   updateRotatePrompt();
+  updateZoomControls();
   pauseMenuIndex = 0;
   requestAnimationFrame(() => focusPauseButton(0));
 }
@@ -266,11 +276,13 @@ function updateFullscreenButton() {
   const active = isFullscreen();
   ui.fullscreenButton.classList.toggle('hidden', active);
   ui.fullscreenButton.setAttribute('aria-pressed', String(active));
+  if (!active) ui.fullscreenButton.textContent = 'PLEIN ÉCRAN CONSEILLÉ';
   resize();
 }
 
 async function enterFullscreen() {
   if (isFullscreen()) return;
+  ui.fullscreenButton.textContent = 'PLEIN ÉCRAN CONSEILLÉ';
   const root = document.documentElement;
   const request = root.requestFullscreen || root.webkitRequestFullscreen || root.msRequestFullscreen;
   try {
@@ -682,6 +694,7 @@ function showResults() {
       : `<span class="result-breakdown"><span>${formatTime(boat.rawFinishTime)}</span><b>+${boat.penalty} s</b><strong>= ${formatTime(boat.finishTime)}</strong></span>`;
     return `<div class="result-row ${boat.type === 'player' ? 'player' : ''}" style="color:${boat.color}"><span>${index + 1}</span><span>${boat.name}</span>${value}</div>`;
   }).join('');
+  ui.mapZoom.classList.add('hidden');
   ui.finishPanel.classList.remove('hidden');
 }
 
@@ -732,34 +745,122 @@ function update(dt) {
   finishRaceIfReady();
 }
 
+function isCompactScreen(rect) {
+  const touchDevice = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+  const mobileBrowser = navigator.userAgentData?.mobile || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  return touchDevice || mobileBrowser || (rect.width <= 650 && Math.min(rect.width, rect.height) <= 500);
+}
+
+function isTableMode(rect, coarsePointer) {
+  return setup.mode === 'local' && (rect.width <= 1024 || coarsePointer) && rect.width > rect.height;
+}
+
+function courseCameraBounds(course) {
+  const points = [course.start.a, course.start.b, course.finish.a, course.finish.b, ...course.marks];
+  const humanCount = setup.mode === 'local' ? 2 : 1;
+  const aiCount = setup.mode === 'solo' || setup.fleet === 'ai' ? DIFFICULTIES[setup.difficulty].count : 0;
+  for (let index = 0; index < humanCount + aiCount; index++) {
+    points.push({ x: course.spawn.x + (index % 5 - 2) * 42, y: course.spawn.y + Math.floor(index / 5) * 35 });
+  }
+  const margin = 60;
+  const minX = Math.max(0, Math.min(...points.map(point => point.x)) - margin);
+  const maxX = Math.min(WORLD.width, Math.max(...points.map(point => point.x)) + margin);
+  const minY = Math.max(0, Math.min(...points.map(point => point.y)) - margin);
+  const maxY = Math.min(WORLD.height, Math.max(...points.map(point => point.y)) + margin);
+  return { minX, maxX, minY, maxY, width: maxX - minX, height: maxY - minY };
+}
+
+function visibleBox(element) {
+  if (!element || element.classList.contains('hidden') || getComputedStyle(element).display === 'none') return null;
+  return element.getBoundingClientRect();
+}
+
+function cameraViewport(rect, tableMode, compact) {
+  const styles = getComputedStyle(canvas.parentElement);
+  const safeTop = parseFloat(styles.getPropertyValue('--safe-top')) || 0;
+  const safeRight = parseFloat(styles.getPropertyValue('--safe-right')) || 0;
+  const safeBottom = parseFloat(styles.getPropertyValue('--safe-bottom')) || 0;
+  const safeLeft = parseFloat(styles.getPropertyValue('--safe-left')) || 0;
+  let left = safeLeft + (compact ? 18 : 45);
+  let right = rect.width - safeRight - (compact ? 18 : 45);
+  let top = safeTop + (compact ? 18 : 45);
+  let bottom = rect.height - safeBottom - (compact ? 18 : 45);
+
+  if (tableMode) {
+    top = (ui.rightHud.classList.contains('expanded') ? 130 : 68) + safeTop + 8;
+    bottom = rect.height - (ui.leftHud.classList.contains('expanded') ? 130 : 68) - safeBottom - 8;
+    left += 58;
+    right -= 58;
+  } else if (compact) {
+    const banner = visibleBox(document.querySelector('.common-banner'));
+    const controls = visibleBox(document.querySelector('.mobile-left'));
+    if (banner) top = Math.max(top, banner.bottom - rect.top + 8);
+    if (controls) bottom = Math.min(bottom, controls.top - rect.top - 8);
+    if (rect.height >= rect.width) {
+      [visibleBox(ui.leftHud), visibleBox(ui.rightHud)].filter(Boolean).forEach(box => {
+        top = Math.max(top, box.bottom - rect.top + 8);
+      });
+    }
+  }
+
+  if (right - left < 120) { left = safeLeft + 12; right = rect.width - safeRight - 12; }
+  if (bottom - top < 120) { top = safeTop + 12; bottom = rect.height - safeBottom - 12; }
+  return { left, right, top, bottom, width: right - left, height: bottom - top };
+}
+
+function zoomText(value) {
+  return `${String(value).replace('.', ',')}×`;
+}
+
+function updateZoomControls() {
+  const show = view.compact && ['countdown', 'racing'].includes(game.state);
+  ui.mapZoom.classList.toggle('hidden', !show);
+  ui.zoomLabel.textContent = zoomText(ZOOM_LEVELS[cameraZoomIndex]);
+  ui.zoomOutButton.disabled = cameraZoomIndex === 0;
+  ui.zoomInButton.disabled = cameraZoomIndex === ZOOM_LEVELS.length - 1;
+}
+
+function setCameraZoom(index) {
+  cameraZoomIndex = clamp(index, 0, ZOOM_LEVELS.length - 1);
+  resize();
+}
+
 function resize() {
   const rect = canvas.getBoundingClientRect();
   view.dpr = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = Math.round(rect.width * view.dpr);
   canvas.height = Math.round(rect.height * view.dpr);
-  const padding = rect.width < 600 ? 22 : 45;
+
   const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
-  const tableMode = setup.mode === 'local' && (rect.width <= 1024 || coarsePointer) && rect.width > rect.height;
-  if (tableMode) {
-    const styles = getComputedStyle(canvas.parentElement);
-    const safeTop = parseFloat(styles.getPropertyValue('--safe-top')) || 0;
-    const safeBottom = parseFloat(styles.getPropertyValue('--safe-bottom')) || 0;
-    const topSpace = (ui.rightHud.classList.contains('expanded') ? 130 : 68) + safeTop;
-    const bottomSpace = (ui.leftHud.classList.contains('expanded') ? 130 : 68) + safeBottom;
-    const usableHeight = rect.height - topSpace - bottomSpace;
-    view.scale = Math.min((rect.width - padding * 2) / WORLD.width, (usableHeight - 12) / WORLD.height);
-    view.x = (rect.width - WORLD.width * view.scale) / 2;
-    view.y = topSpace + (usableHeight - WORLD.height * view.scale) / 2;
-  } else {
-    view.scale = Math.min((rect.width - padding * 2) / WORLD.width, (rect.height - padding * 2) / WORLD.height);
-    view.x = (rect.width - WORLD.width * view.scale) / 2;
-    view.y = (rect.height - WORLD.height * view.scale) / 2;
-  }
+  view.compact = isCompactScreen(rect);
+  view.tableMode = isTableMode(rect, coarsePointer);
+  view.rotation = view.tableMode ? -Math.PI / 2 : 0;
+  const bounds = view.compact
+    ? courseCameraBounds(game.course)
+    : { minX: 0, maxX: WORLD.width, minY: 0, maxY: WORLD.height, width: WORLD.width, height: WORLD.height };
+  const viewport = cameraViewport(rect, view.tableMode, view.compact);
+  const cosine = Math.abs(Math.cos(view.rotation));
+  const sine = Math.abs(Math.sin(view.rotation));
+  const rotatedWidth = bounds.width * cosine + bounds.height * sine;
+  const rotatedHeight = bounds.width * sine + bounds.height * cosine;
+
+  view.fitScale = Math.max(.01, Math.min(viewport.width / rotatedWidth, viewport.height / rotatedHeight));
+  view.zoom = view.compact ? ZOOM_LEVELS[cameraZoomIndex] : 1;
+  view.scale = view.fitScale * view.zoom;
+  view.worldX = (bounds.minX + bounds.maxX) / 2;
+  view.worldY = (bounds.minY + bounds.maxY) / 2;
+  view.screenX = (viewport.left + viewport.right) / 2;
+  view.screenY = (viewport.top + viewport.bottom) / 2;
+  updateZoomControls();
   updateRotatePrompt();
 }
 
 function worldTransform() {
-  ctx.setTransform(view.dpr * view.scale, 0, 0, view.dpr * view.scale, view.dpr * view.x, view.dpr * view.y);
+  ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+  ctx.translate(view.screenX, view.screenY);
+  ctx.rotate(view.rotation);
+  ctx.scale(view.scale, view.scale);
+  ctx.translate(-view.worldX, -view.worldY);
 }
 
 function drawSea(time) {
@@ -879,6 +980,7 @@ function drawWindField() {
 function drawBoat(boat) {
   worldTransform();
   ctx.lineCap = 'round';
+  const mobileBoatScale = view.compact ? .88 : 1;
   boat.wake.forEach((point, index) => {
     if (point.life <= 0) return;
     ctx.globalAlpha = Math.max(0, point.life) * .2; ctx.fillStyle = '#eaf5eb';
@@ -890,7 +992,7 @@ function drawBoat(boat) {
     ctx.beginPath(); ctx.arc(boat.x, boat.y, 31 / view.scale, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
   }
   ctx.save(); ctx.translate(boat.x, boat.y); ctx.rotate(rad(boat.heading));
-  const s = (boat.type === 'ai' ? .86 : 1.05) / view.scale;
+  const s = (boat.type === 'ai' ? .86 : 1.05) * mobileBoatScale / view.scale;
   ctx.shadowColor = 'rgba(0,0,0,.3)'; ctx.shadowBlur = 12 * s; ctx.shadowOffsetY = 6 * s;
   ctx.fillStyle = boat.color; ctx.beginPath();
   ctx.moveTo(0, -24 * s); ctx.bezierCurveTo(11 * s, -7 * s, 10 * s, 16 * s, 0, 24 * s); ctx.bezierCurveTo(-10 * s, 16 * s, -11 * s, -7 * s, 0, -24 * s); ctx.fill();
@@ -912,7 +1014,7 @@ function drawBoat(boat) {
   ctx.fillStyle = boat.type === 'player' ? '#ffffff' : 'rgba(255,255,255,.75)';
   ctx.font = `700 ${(boat.type === 'player' ? 10 : 8) / view.scale}px DM Mono`; ctx.textAlign = 'center';
   const label = boat.type === 'player' ? (boat.playerIndex === 0 ? 'GAUCHE' : 'DROITE') : boat.name;
-  ctx.fillText(label, boat.x, boat.y - 32 / view.scale);
+  ctx.fillText(label, boat.x, boat.y - (view.compact ? 29 : 32) / view.scale);
 }
 
 function updatePlayerHud(side, boat, ordered) {
@@ -1005,6 +1107,7 @@ function setTurn(player, direction, active) {
 
 function selectOption(group, value) {
   setup[group] = value;
+  if (group === 'course') cameraZoomIndex = 1;
   document.body.classList.toggle('local-mode', setup.mode === 'local');
   document.querySelectorAll(`[data-${group}]`).forEach(button => button.classList.toggle('active', button.dataset[group] === value));
   ui.fleetChoice.classList.toggle('hidden', setup.mode !== 'local');
@@ -1060,6 +1163,9 @@ document.addEventListener('fullscreenchange', updateFullscreenButton);
 document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
 ui.startButton.addEventListener('click', startGame);
 ui.fullscreenButton.addEventListener('click', enterFullscreen);
+ui.zoomOutButton.addEventListener('click', () => setCameraZoom(cameraZoomIndex - 1));
+ui.zoomFitButton.addEventListener('click', () => setCameraZoom(1));
+ui.zoomInButton.addEventListener('click', () => setCameraZoom(cameraZoomIndex + 1));
 ui.restartButton.addEventListener('click', restartRace);
 ui.homeButton.addEventListener('click', returnHome);
 ui.pauseButton.addEventListener('click', togglePause);
