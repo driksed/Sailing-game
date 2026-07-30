@@ -5,7 +5,7 @@ const ui = Object.fromEntries([
   'intro', 'startButton', 'restartButton', 'homeButton', 'finishPanel', 'finishTime',
   'finishResult', 'results', 'timer', 'phaseLabel', 'message', 'fleetChoice', 'courseMeta',
   'courseDescription', 'keyHint', 'tackButton', 'rightTackButton', 'leftHud', 'rightHud', 'bannerCourse',
-  'bannerLeg', 'bannerWindSpeed', 'bannerWindDirection', 'topThree', 'pauseButton',
+  'bannerLeg', 'bannerWindDirection', 'topThree', 'pauseButton',
   'pausePanel', 'resumeButton', 'pauseRestartButton', 'pauseHomeButton',
   'windCompass', 'compassWindArrow', 'compassWindSpeed', 'gustLabel',
   'leftRank', 'leftSpeed', 'leftHeading', 'leftWindAngle', 'leftMode', 'leftMark',
@@ -36,10 +36,9 @@ const COURSES = {
     finish: { a: { x: 390, y: 810 }, b: { x: 730, y: 810 } },
     spawn: { x: 560, y: 875, heading: 318 },
     marks: [
-      { x: 540, y: 150, name: 'MARQUE AU VENT', color: '#ff6b35' },
-      { x: 705, y: 205, name: 'DOG LEG', color: '#d7f25c' },
-      { x: 565, y: 680, name: 'PORTE SOUS LE VENT', color: '#ff6b35' },
-      { x: 540, y: 160, name: 'SECOND BORD', color: '#d7f25c' }
+      { x: 540, y: 150, name: 'MARQUE AU VENT', roundingDir: -1 },
+      { x: 565, y: 680, name: 'MARQUE SOUS LE VENT', roundingDir: -1 },
+      { x: 540, y: 150, name: 'SECOND PASSAGE AU VENT', roundingDir: -1 }
     ]
   },
   coastal: {
@@ -87,7 +86,7 @@ function prepareCourses() {
       mark.incoming = { x: (mark.x - previous.x) / incomingLength, y: (mark.y - previous.y) / incomingLength };
       mark.outgoing = { x: (next.x - mark.x) / outgoingLength, y: (next.y - mark.y) / outgoingLength };
       const cross = mark.incoming.x * mark.outgoing.y - mark.incoming.y * mark.outgoing.x;
-      mark.roundingDir = cross >= 0 ? 1 : -1;
+      if (mark.roundingDir === undefined) mark.roundingDir = cross >= 0 ? 1 : -1;
       mark.roundingSide = mark.roundingDir > 0 ? 'TRIBORD' : 'BÂBORD';
     });
   });
@@ -97,8 +96,8 @@ prepareCourses();
 
 const DIFFICULTIES = {
   easy: { count: 3, speed: .88, reaction: 1.25, error: 11, sailDelay: 1.8 },
-  normal: { count: 5, speed: .98, reaction: .72, error: 5, sailDelay: .9 },
-  expert: { count: 7, speed: 1.025, reaction: .38, error: 1.8, sailDelay: .35 }
+  normal: { count: 3, speed: .98, reaction: .72, error: 5, sailDelay: .9 },
+  expert: { count: 3, speed: 1.025, reaction: .38, error: 1.8, sailDelay: .35 }
 };
 
 const AI_NAMES = ['Mistral', 'Alizé', 'Mélusine', 'Pen Duick', 'Ar-Men', 'Avel', 'Korrigan'];
@@ -108,7 +107,9 @@ const input = [{ left: false, right: false }, { left: false, right: false }];
 const activeContacts = new Set();
 let view = { scale: 1, x: 0, y: 0, dpr: 1 };
 let lastFrame = performance.now();
+let lastUiUpdate = 0;
 let flashTimeout;
+let pauseMenuIndex = 0;
 
 const game = {
   state: 'idle', countdown: 5, elapsed: 0, penalty: 0, windFrom: 4, windSpeed: 12,
@@ -152,6 +153,7 @@ function makeBoat(index, type, playerIndex = -1) {
     sails: { main: { deployed: true, current: 1 }, jib: { deployed: true, current: 1 }, spi: { deployed: false, current: 0 } },
     started: false, leg: 0, penalty: 0, finishTime: null, tackTarget: null,
     aiClock: Math.random() * .5, aiHeading: course.spawn.heading, aiRouteHeading: course.spawn.heading, sailClock: 0,
+    aiLane: type === 'ai' ? (index % 3) - 1 : 0,
     roundingState: null
   };
 }
@@ -199,11 +201,22 @@ function clearInputs() {
   input.forEach(keys => { keys.left = false; keys.right = false; });
 }
 
+function pauseButtons() {
+  return [ui.resumeButton, ui.pauseRestartButton, ui.pauseHomeButton];
+}
+
+function focusPauseButton(index) {
+  const buttons = pauseButtons();
+  pauseMenuIndex = (index + buttons.length) % buttons.length;
+  buttons[pauseMenuIndex].focus();
+}
+
 function togglePause() {
   if (game.state === 'paused') {
     game.state = game.pausedFrom;
     game.pausedFrom = null;
     ui.pausePanel.classList.add('hidden');
+    ui.pauseButton.focus();
     return;
   }
   if (!['countdown', 'racing'].includes(game.state)) return;
@@ -211,6 +224,8 @@ function togglePause() {
   game.state = 'paused';
   clearInputs();
   ui.pausePanel.classList.remove('hidden');
+  pauseMenuIndex = 0;
+  requestAnimationFrame(() => focusPauseButton(0));
 }
 
 function restartRace() {
@@ -320,13 +335,16 @@ function applyCollisionAvoidance(boat, desiredHeading) {
     if (other === boat || other.finishTime !== null) continue;
     const otherVelocity = boatVelocity(other);
     const relative = { x: other.x - boat.x, y: other.y - boat.y };
+    const currentGapSquared = relative.x ** 2 + relative.y ** 2;
+    if (currentGapSquared > 220 ** 2) continue;
     const relativeVelocity = { x: otherVelocity.x - velocity.x, y: otherVelocity.y - velocity.y };
     const velocitySquared = relativeVelocity.x ** 2 + relativeVelocity.y ** 2;
     const time = velocitySquared > .01 ? clamp(-(relative.x * relativeVelocity.x + relative.y * relativeVelocity.y) / velocitySquared, 0, 2.8) : 0;
-    const closest = Math.hypot(relative.x + relativeVelocity.x * time, relative.y + relativeVelocity.y * time);
-    const currentGap = Math.hypot(relative.x, relative.y);
-    if (closest >= 58 || (time <= .05 && currentGap > 45) || closest >= closestRisk) continue;
-    closestRisk = closest;
+    const closestX = relative.x + relativeVelocity.x * time;
+    const closestY = relative.y + relativeVelocity.y * time;
+    const closestSquared = closestX ** 2 + closestY ** 2;
+    if (closestSquared >= 58 ** 2 || (time <= .05 && currentGapSquared > 45 ** 2) || closestSquared >= closestRisk) continue;
+    closestRisk = closestSquared;
     const otherSide = signedAngle(bearing(boat, other) - boat.heading);
     const strength = mustGiveWay(boat, other) ? 22 : 7;
     correction = otherSide >= 0 ? -strength : strength;
@@ -336,7 +354,10 @@ function applyCollisionAvoidance(boat, desiredHeading) {
 
 function nextTarget(boat) {
   if (!boat.started) {
-    return { x: (game.course.start.a.x + game.course.start.b.x) / 2, y: (game.course.start.a.y + game.course.start.b.y) / 2, name: 'LIGNE DE DÉPART' };
+    const line = game.course.start;
+    const length = distance(line.a, line.b);
+    const lane = boat.aiLane * 48;
+    return { x: (line.a.x + line.b.x) / 2 + (line.b.x - line.a.x) / length * lane, y: (line.a.y + line.b.y) / 2 + (line.b.y - line.a.y) / length * lane, name: 'LIGNE DE DÉPART' };
   }
   if (boat.leg <= game.course.marks.length) {
     const mark = game.course.marks[boat.leg - 1];
@@ -344,23 +365,27 @@ function nextTarget(boat) {
     const exiting = state && state.index === boat.leg - 1 && state.entered;
     if (exiting && state.sweep < rad(58)) {
       const orbitAngle = state.lastAngle + mark.roundingDir * .72;
+      const orbitRadius = 76 + boat.aiLane * 10;
       return {
-        x: mark.x + Math.cos(orbitAngle) * 76,
-        y: mark.y + Math.sin(orbitAngle) * 76,
+        x: mark.x + Math.cos(orbitAngle) * orbitRadius,
+        y: mark.y + Math.sin(orbitAngle) * orbitRadius,
         name: `${mark.name} · ${mark.roundingSide}`
       };
     }
     const direction = exiting ? mark.outgoing : mark.incoming;
     const side = { x: mark.roundingDir * direction.y, y: -mark.roundingDir * direction.x };
     const along = exiting ? 70 : -28;
-    const sideDistance = exiting ? 86 : 74;
+    const sideDistance = (exiting ? 86 : 74) + boat.aiLane * 10;
     return {
       x: mark.x + side.x * sideDistance + direction.x * along,
       y: mark.y + side.y * sideDistance + direction.y * along,
       name: `${mark.name} · ${mark.roundingSide}`
     };
   }
-  return { x: (game.course.finish.a.x + game.course.finish.b.x) / 2, y: (game.course.finish.a.y + game.course.finish.b.y) / 2, name: 'LIGNE D’ARRIVÉE' };
+  const line = game.course.finish;
+  const length = distance(line.a, line.b);
+  const lane = boat.aiLane * 48;
+  return { x: (line.a.x + line.b.x) / 2 + (line.b.x - line.a.x) / length * lane, y: (line.a.y + line.b.y) / 2 + (line.b.y - line.a.y) / length * lane, name: 'LIGNE D’ARRIVÉE' };
 }
 
 function updateAI(boat, dt) {
@@ -433,7 +458,8 @@ function updateBoat(boat, dt) {
 
   if (boat.speed > .8) {
     boat.wake.unshift({ x: boat.x, y: boat.y, life: 1 });
-    if (boat.wake.length > 28) boat.wake.pop();
+    const wakeLimit = boat.type === 'ai' ? 14 : 28;
+    if (boat.wake.length > wakeLimit) boat.wake.pop();
   }
   boat.wake.forEach(point => point.life -= dt * .55);
 }
@@ -486,20 +512,13 @@ function checkCourse(boat) {
     }
     const state = boat.roundingState;
 
-    if (markDistance < 30) {
-      const angle = Math.atan2(boat.y - mark.y, boat.x - mark.x);
-      boat.x = mark.x + Math.cos(angle) * 30;
-      boat.y = mark.y + Math.sin(angle) * 30;
-      boat.speed *= .72;
-    }
-
     if (markDistance <= 100) {
       const angle = Math.atan2(boat.y - mark.y, boat.x - mark.x);
       if (!state.entered) {
         state.entered = true;
         state.lastAngle = angle;
         state.sweep = 0;
-      } else if (markDistance > 30) {
+      } else if (markDistance > 5) {
         const delta = Math.atan2(Math.sin(angle - state.lastAngle), Math.cos(angle - state.lastAngle));
         const progress = delta * mark.roundingDir;
         state.sweep = progress >= 0 ? state.sweep + progress : Math.max(0, state.sweep + progress * .4);
@@ -545,16 +564,19 @@ function resolveCollisions() {
     for (let j = i + 1; j < game.boats.length; j++) {
       const a = game.boats[i];
       const b = game.boats[j];
-      const gap = distance(a, b);
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      const gapSquared = dx * dx + dy * dy;
       const contactKey = a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
       if (a.finishTime !== null || b.finishTime !== null) {
         activeContacts.delete(contactKey);
         continue;
       }
-      if (gap > 0 && gap < 25) {
+      if (gapSquared > 0 && gapSquared < 25 ** 2) {
+        const gap = Math.sqrt(gapSquared);
         const push = (25 - gap) / 2;
-        const nx = (a.x - b.x) / gap;
-        const ny = (a.y - b.y) / gap;
+        const nx = dx / gap;
+        const ny = dy / gap;
         a.x += nx * push; a.y += ny * push;
         b.x -= nx * push; b.y -= ny * push;
         if (!activeContacts.has(contactKey)) {
@@ -578,7 +600,7 @@ function resolveCollisions() {
             flash(`${reason} · ${responsible.name.toUpperCase()} +5 S`, 1400);
           }
         }
-      } else if (gap > 35) {
+      } else if (gapSquared > 35 ** 2) {
         activeContacts.delete(contactKey);
       }
     }
@@ -694,7 +716,7 @@ function drawSea(time) {
 
 function drawGate(line, type) {
   const shared = type === 'shared';
-  const color = type === 'finish' ? '#ff6b35' : shared ? '#d7f25c' : '#f0eee6';
+  const color = '#c4d0ce';
   const label = type === 'finish' ? 'ARRIVÉE' : shared ? 'DÉPART / ARRIVÉE' : 'DÉPART';
   ctx.strokeStyle = color; ctx.lineWidth = 4 / view.scale;
   if (type === 'finish') ctx.setLineDash([8 / view.scale, 5 / view.scale]);
@@ -703,6 +725,17 @@ function drawGate(line, type) {
   drawPin(line.a.x, line.a.y, color); drawPin(line.b.x, line.b.y, color);
   ctx.fillStyle = color; ctx.font = `700 ${9 / view.scale}px DM Mono`; ctx.textAlign = 'center';
   ctx.fillText(label, (line.a.x + line.b.x) / 2, (line.a.y + line.b.y) / 2 + 24 / view.scale);
+}
+
+function drawGateTarget(line, boat) {
+  const dx = line.b.x - line.a.x;
+  const dy = line.b.y - line.a.y;
+  const length = Math.hypot(dx, dy);
+  const offset = (boat.playerIndex === 0 ? -4 : 4) / view.scale;
+  const offsetX = -dy / length * offset;
+  const offsetY = dx / length * offset;
+  ctx.strokeStyle = boat.color; ctx.lineWidth = 3 / view.scale; ctx.setLineDash([9 / view.scale, 5 / view.scale]);
+  ctx.beginPath(); ctx.moveTo(line.a.x + offsetX, line.a.y + offsetY); ctx.lineTo(line.b.x + offsetX, line.b.y + offsetY); ctx.stroke(); ctx.setLineDash([]);
 }
 
 function drawCourse() {
@@ -717,35 +750,50 @@ function drawCourse() {
   drawGate(game.course.start, sharedLine ? 'shared' : 'start');
   if (!sharedLine) drawGate(game.course.finish, 'finish');
   game.course.marks.forEach((mark, index) => {
-    const active = game.humans.some(boat => boat.started && boat.leg === index + 1);
-    if (active) {
-      ctx.strokeStyle = mark.color; ctx.lineWidth = 2 / view.scale; ctx.globalAlpha = .7;
-      ctx.beginPath(); ctx.arc(mark.x, mark.y, 72 + Math.sin(performance.now() * .004) * 7, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
-      drawRoundingArrow(mark);
-    }
-    drawPin(mark.x, mark.y, mark.color);
+    const firstAtPosition = game.course.marks.findIndex(candidate => candidate.x === mark.x && candidate.y === mark.y);
+    if (firstAtPosition !== index) return;
+    const passNumbers = game.course.marks
+      .map((candidate, candidateIndex) => candidate.x === mark.x && candidate.y === mark.y ? String(candidateIndex + 1).padStart(2, '0') : null)
+      .filter(Boolean)
+      .join('/');
+    drawPin(mark.x, mark.y, '#c4d0ce', 6);
     ctx.fillStyle = 'rgba(7,29,38,.8)'; ctx.font = `700 ${14 / view.scale}px Manrope`; ctx.textAlign = 'center';
-    ctx.fillText(String(index + 1).padStart(2, '0'), mark.x, mark.y - 38 / view.scale);
+    ctx.fillText(passNumbers, mark.x, mark.y - 38 / view.scale);
+  });
+  game.humans.forEach(boat => {
+    if (boat.finishTime !== null) return;
+    if (!boat.started) {
+      drawGateTarget(game.course.start, boat);
+    } else if (boat.leg <= game.course.marks.length) {
+      const mark = game.course.marks[boat.leg - 1];
+      const offset = boat.playerIndex * 11;
+      ctx.strokeStyle = boat.color; ctx.lineWidth = 2 / view.scale; ctx.globalAlpha = .82;
+      ctx.beginPath(); ctx.arc(mark.x, mark.y, 72 + offset + Math.sin(performance.now() * .004) * 5, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
+      drawRoundingArrow(mark, boat.color, offset);
+    } else {
+      drawGateTarget(game.course.finish, boat);
+    }
   });
 }
 
-function drawRoundingArrow(mark) {
+function drawRoundingArrow(mark, color, offset = 0) {
   const side = { x: mark.roundingDir * mark.incoming.y, y: -mark.roundingDir * mark.incoming.x };
   const start = Math.atan2(side.y * 74 - mark.incoming.y * 28, side.x * 74 - mark.incoming.x * 28);
   const end = start + mark.roundingDir * 1.45;
-  ctx.strokeStyle = mark.color; ctx.fillStyle = mark.color; ctx.lineWidth = 3 / view.scale;
-  ctx.beginPath(); ctx.arc(mark.x, mark.y, 52 / view.scale, start, end, mark.roundingDir < 0); ctx.stroke();
-  const tipX = mark.x + Math.cos(end) * 52 / view.scale;
-  const tipY = mark.y + Math.sin(end) * 52 / view.scale;
+  const radius = (52 + offset) / view.scale;
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 3 / view.scale;
+  ctx.beginPath(); ctx.arc(mark.x, mark.y, radius, start, end, mark.roundingDir < 0); ctx.stroke();
+  const tipX = mark.x + Math.cos(end) * radius;
+  const tipY = mark.y + Math.sin(end) * radius;
   ctx.beginPath(); ctx.arc(tipX, tipY, 4 / view.scale, 0, Math.PI * 2); ctx.fill();
   ctx.font = `700 ${8 / view.scale}px DM Mono`; ctx.textAlign = 'center';
-  ctx.fillText(`À LAISSER À ${mark.roundingSide}`, mark.x, mark.y + 54 / view.scale);
+  ctx.fillText(`À LAISSER À ${mark.roundingSide}`, mark.x, mark.y + (56 + offset) / view.scale);
 }
 
-function drawPin(x, y, color) {
-  const size = 11 / view.scale;
+function drawPin(x, y, color, screenSize = 11) {
+  const size = screenSize / view.scale;
   ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, size, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = 'rgba(7,29,38,.7)'; ctx.lineWidth = 3 / view.scale; ctx.stroke();
+  ctx.strokeStyle = 'rgba(7,29,38,.7)'; ctx.lineWidth = Math.max(1.5, screenSize * .22) / view.scale; ctx.stroke();
 }
 
 function drawWindField() {
@@ -841,8 +889,7 @@ function updateUI() {
   ui.phaseLabel.textContent = game.state === 'countdown' ? `DÉPART · ${Math.max(0, Math.ceil(game.countdown))}` : game.state === 'racing' ? 'EN COURSE' : game.state === 'paused' ? 'PAUSE' : game.state === 'finished' ? 'TERMINÉ' : 'EN ATTENTE';
   ui.bannerCourse.textContent = game.course.name.toUpperCase();
   ui.bannerLeg.textContent = `${primary.started ? 'PARCOURS' : 'DÉPART'} · ${Math.max(0, primary.leg - 1)}/${game.course.marks.length}`;
-  ui.bannerWindSpeed.textContent = game.windSpeed.toFixed(1);
-  ui.bannerWindDirection.textContent = `N · ${String(Math.round(normalize(game.windFrom))).padStart(3, '0')}°`;
+  ui.bannerWindDirection.textContent = `${String(Math.round(normalize(game.windFrom))).padStart(3, '0')}°`;
   ui.compassWindSpeed.textContent = game.windSpeed.toFixed(1);
   ui.compassWindArrow.style.transform = `rotate(${normalize(game.windFrom)}deg)`;
   const gustVisible = game.gust.active && game.gust.amount > .05;
@@ -865,7 +912,12 @@ function render(time) {
 
 function frame(time) {
   const dt = Math.min((time - lastFrame) / 1000, .05); lastFrame = time;
-  update(dt); updateUI(); render(time); requestAnimationFrame(frame);
+  update(dt);
+  if (time - lastUiUpdate >= 100) {
+    updateUI();
+    lastUiUpdate = time;
+  }
+  render(time); requestAnimationFrame(frame);
 }
 
 function setTurn(player, direction, active) {
@@ -894,7 +946,16 @@ window.addEventListener('keydown', event => {
     togglePause();
     return;
   }
-  if (game.state === 'paused') return;
+  if (game.state === 'paused') {
+    if (event.code === 'ArrowUp' || event.code === 'ArrowDown') {
+      event.preventDefault();
+      focusPauseButton(pauseMenuIndex + (event.code === 'ArrowDown' ? 1 : -1));
+    } else if (event.code === 'Enter' && !event.repeat) {
+      event.preventDefault();
+      pauseButtons()[pauseMenuIndex].click();
+    }
+    return;
+  }
   if (event.key.toLowerCase() === 'w') { event.preventDefault(); setTurn(0, -1, true); }
   if (event.key.toLowerCase() === 'c') { event.preventDefault(); setTurn(0, 1, true); }
   if (event.code === 'ArrowLeft') { event.preventDefault(); setTurn(local ? 1 : 0, -1, true); }

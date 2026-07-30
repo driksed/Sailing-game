@@ -22,10 +22,13 @@
           <strong id="bannerCourse">TRIANGLE DE QUIBERON</strong>
           <span id="bannerLeg">DÉPART · 0/2</span>
         </div>
-        <div class="banner-data wind-data">
-          <small>VENT RÉEL</small>
-          <strong><span id="bannerWindSpeed">12.0</span> <i>nd</i></strong>
-          <span id="bannerWindDirection">N · 004°</span>
+        <div class="banner-wind">
+          <div class="wind-compass" id="windCompass" aria-label="Compas du vent réel">
+            <span class="compass-n">N</span><span class="compass-e">E</span><span class="compass-s">S</span><span class="compass-w">O</span>
+            <div class="compass-arrow" id="compassWindArrow">↓</div>
+          </div>
+          <div class="wind-readout"><span>VENT</span><strong id="compassWindSpeed">12.0<small> ND</small></strong><b id="bannerWindDirection">004°</b></div>
+          <div class="gust-label hidden" id="gustLabel">RAFALE +0.0 ND</div>
         </div>
         <div class="top-three" id="topThree" aria-label="Trois premiers"></div>
         <div class="race-clock">
@@ -34,13 +37,6 @@
         </div>
         <button class="pause-button" id="pauseButton" aria-label="Mettre en pause">Ⅱ<small>PAUSE</small></button>
       </header>
-
-      <div class="wind-compass" id="windCompass" aria-label="Compas du vent réel">
-        <span class="compass-n">N</span><span class="compass-e">E</span><span class="compass-s">S</span><span class="compass-w">O</span>
-        <div class="compass-arrow" id="compassWindArrow">↓</div>
-        <div class="compass-center"><strong><span id="compassWindSpeed">12.0</span></strong><small>ND</small></div>
-        <div class="gust-label hidden" id="gustLabel">RAFALE +0.0 ND</div>
-      </div>
 
       <div class="message" id="message" aria-live="polite"></div>
 
@@ -102,10 +98,10 @@
         </div>
       </div>
 
-      <div class="pause-panel hidden" id="pausePanel">
+      <div class="pause-panel hidden" id="pausePanel" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
         <div class="menu-card">
           <p class="eyebrow">COURSE SUSPENDUE</p>
-          <h2>Pause.</h2>
+          <h2 id="pauseTitle">Pause.</h2>
           <button id="resumeButton" class="primary-button">REPRENDRE <span>→</span></button>
           <button id="pauseRestartButton" class="secondary-button">RECOMMENCER</button>
           <button id="pauseHomeButton" class="secondary-button">RETOUR ACCUEIL</button>
