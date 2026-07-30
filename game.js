@@ -8,6 +8,8 @@ const ui = Object.fromEntries([
   'bannerLeg', 'bannerWindDirection', 'topThree', 'pauseButton',
   'pausePanel', 'resumeButton', 'pauseRestartButton', 'pauseHomeButton',
   'windCompass', 'compassWindArrow', 'compassWindSpeed', 'gustLabel',
+  'rotatePrompt', 'leftHudToggle', 'rightHudToggle', 'leftTableTime', 'leftTableWind',
+  'rightTableTime', 'rightTableWind',
   'leftRank', 'leftSpeed', 'leftHeading', 'leftWindAngle', 'leftMode', 'leftMark',
   'leftDistance', 'leftBearing', 'leftEfficiency', 'leftEfficiencyBar', 'leftPower',
   'leftMainStatus', 'leftJibStatus', 'leftSpiStatus',
@@ -188,7 +190,12 @@ function buildFleet(state = 'idle') {
   ui.pausePanel.classList.add('hidden');
   ui.leftHud.classList.toggle('hidden', state === 'idle');
   ui.rightHud.classList.toggle('hidden', setup.mode !== 'local' || state === 'idle');
+  ui.leftHud.classList.remove('expanded');
+  ui.rightHud.classList.remove('expanded');
+  ui.leftHudToggle.setAttribute('aria-expanded', 'false');
+  ui.rightHudToggle.setAttribute('aria-expanded', 'false');
   input.forEach(keys => { keys.left = false; keys.right = false; });
+  updateRotatePrompt();
   if (state === 'countdown') flash('5', 900);
 }
 
@@ -217,6 +224,7 @@ function togglePause() {
     game.pausedFrom = null;
     ui.pausePanel.classList.add('hidden');
     ui.pauseButton.focus();
+    updateRotatePrompt();
     return;
   }
   if (!['countdown', 'racing'].includes(game.state)) return;
@@ -224,6 +232,7 @@ function togglePause() {
   game.state = 'paused';
   clearInputs();
   ui.pausePanel.classList.remove('hidden');
+  updateRotatePrompt();
   pauseMenuIndex = 0;
   requestAnimationFrame(() => focusPauseButton(0));
 }
@@ -239,6 +248,20 @@ function returnHome() {
   ui.pausePanel.classList.add('hidden');
   ui.intro.classList.remove('hidden');
   buildFleet('idle');
+}
+
+function updateRotatePrompt() {
+  const mobilePortrait = window.matchMedia('(max-width: 1024px) and (orientation: portrait), (pointer: coarse) and (orientation: portrait)').matches;
+  const shouldShow = setup.mode === 'local' && ['countdown', 'racing'].includes(game.state) && mobilePortrait;
+  ui.rotatePrompt.classList.toggle('hidden', !shouldShow);
+}
+
+function toggleMobileHud(playerIndex) {
+  const hud = playerIndex === 0 ? ui.leftHud : ui.rightHud;
+  const button = playerIndex === 0 ? ui.leftHudToggle : ui.rightHudToggle;
+  const expanded = hud.classList.toggle('expanded');
+  button.setAttribute('aria-expanded', String(expanded));
+  resize();
 }
 
 function flash(text, duration = 1200) {
@@ -686,9 +709,24 @@ function resize() {
   canvas.width = Math.round(rect.width * view.dpr);
   canvas.height = Math.round(rect.height * view.dpr);
   const padding = rect.width < 600 ? 22 : 45;
-  view.scale = Math.min((rect.width - padding * 2) / WORLD.width, (rect.height - padding * 2) / WORLD.height);
-  view.x = (rect.width - WORLD.width * view.scale) / 2;
-  view.y = (rect.height - WORLD.height * view.scale) / 2;
+  const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
+  const tableMode = setup.mode === 'local' && (rect.width <= 1024 || coarsePointer) && rect.width > rect.height;
+  if (tableMode) {
+    const styles = getComputedStyle(canvas.parentElement);
+    const safeTop = parseFloat(styles.getPropertyValue('--safe-top')) || 0;
+    const safeBottom = parseFloat(styles.getPropertyValue('--safe-bottom')) || 0;
+    const topSpace = (ui.rightHud.classList.contains('expanded') ? 130 : 68) + safeTop;
+    const bottomSpace = (ui.leftHud.classList.contains('expanded') ? 130 : 68) + safeBottom;
+    const usableHeight = rect.height - topSpace - bottomSpace;
+    view.scale = Math.min((rect.width - padding * 2) / WORLD.width, (usableHeight - 12) / WORLD.height);
+    view.x = (rect.width - WORLD.width * view.scale) / 2;
+    view.y = topSpace + (usableHeight - WORLD.height * view.scale) / 2;
+  } else {
+    view.scale = Math.min((rect.width - padding * 2) / WORLD.width, (rect.height - padding * 2) / WORLD.height);
+    view.x = (rect.width - WORLD.width * view.scale) / 2;
+    view.y = (rect.height - WORLD.height * view.scale) / 2;
+  }
+  updateRotatePrompt();
 }
 
 function worldTransform() {
@@ -896,6 +934,12 @@ function updateUI() {
   ui.windCompass.classList.toggle('gusting', gustVisible);
   ui.gustLabel.classList.toggle('hidden', !gustVisible);
   ui.gustLabel.textContent = `RAFALE +${(game.gust.strength * game.gust.amount).toFixed(1)} ND`;
+  const tableTime = formatTime(game.elapsed).slice(0, 5);
+  const tableWind = `${game.windSpeed.toFixed(1)} ND`;
+  ui.leftTableTime.textContent = tableTime;
+  ui.leftTableWind.textContent = tableWind;
+  ui.rightTableTime.textContent = tableTime;
+  ui.rightTableWind.textContent = tableWind;
   ui.topThree.innerHTML = ordered.slice(0, 3).map((boat, index) => {
     const progress = boat.finishTime !== null ? formatTime(boat.finishTime) : `${Math.max(0, boat.leg - 1)}/${game.course.marks.length}`;
     return `<div class="leader"><b>${index + 1}</b><i class="leader-dot" style="background:${boat.color}"></i><span><strong>${boat.name}</strong><small>${progress}</small></span></div>`;
@@ -987,6 +1031,8 @@ ui.pauseButton.addEventListener('click', togglePause);
 ui.resumeButton.addEventListener('click', togglePause);
 ui.pauseRestartButton.addEventListener('click', restartRace);
 ui.pauseHomeButton.addEventListener('click', returnHome);
+ui.leftHudToggle.addEventListener('click', () => toggleMobileHud(0));
+ui.rightHudToggle.addEventListener('click', () => toggleMobileHud(1));
 ui.tackButton.addEventListener('click', () => triggerTack(game.humans[0]));
 ui.rightTackButton.addEventListener('click', () => triggerTack(game.humans[1]));
 document.querySelectorAll('[data-player][data-sail]').forEach(button => {

@@ -15,7 +15,7 @@
       <header class="common-banner">
         <div class="brand">
           <span class="brand-mark">É</span>
-          <div><strong>ÉCUME</strong><small>RÉGATE CÔTIÈRE</small></div>
+          <div><strong>ÉCUME</strong><small>RÉGATE CÔTIÈRE · V0.5</small></div>
         </div>
         <div class="banner-data course-data">
           <small>PARCOURS</small>
@@ -27,7 +27,7 @@
             <span class="compass-n">N</span><span class="compass-e">E</span><span class="compass-s">S</span><span class="compass-w">O</span>
             <div class="compass-arrow" id="compassWindArrow">↓</div>
           </div>
-          <div class="wind-readout"><span>VENT</span><strong id="compassWindSpeed">12.0<small> ND</small></strong><b id="bannerWindDirection">004°</b></div>
+          <div class="wind-readout"><span>VENT</span><strong><span id="compassWindSpeed">12.0</span><small> ND</small></strong><b id="bannerWindDirection">004°</b></div>
           <div class="gust-label hidden" id="gustLabel">RAFALE +0.0 ND</div>
         </div>
         <div class="top-three" id="topThree" aria-label="Trois premiers"></div>
@@ -40,10 +40,15 @@
 
       <div class="message" id="message" aria-live="polite"></div>
 
+      <div class="rotate-prompt hidden" id="rotatePrompt">
+        <span>↻</span><strong>TOURNEZ L’APPAREIL</strong><small>Le mode local se joue en paysage.</small>
+      </div>
+
       <section class="player-hud player-left hidden" id="leftHud" style="--player-color:#62e7ff">
         <div class="player-heading">
-          <div><small>BARRE GAUCHE</small><strong>JOUEUR GAUCHE</strong></div>
+          <div><small>BARRE GAUCHE</small><strong>JOUEUR GAUCHE</strong><span class="table-shared"><i id="leftTableTime">00:00</i><i id="leftTableWind">12.0 ND</i></span></div>
           <b id="leftRank">1/4</b>
+          <button class="hud-toggle" id="leftHudToggle" aria-expanded="false" aria-label="Afficher les détails du joueur gauche">⌄</button>
         </div>
         <div class="player-instruments">
           <div><small>VITESSE</small><strong><span id="leftSpeed">0.0</span><i> nd</i></strong></div>
@@ -63,8 +68,9 @@
 
       <section class="player-hud player-right hidden" id="rightHud" style="--player-color:#ff784f">
         <div class="player-heading">
-          <div><small>BARRE DROITE</small><strong>JOUEUR DROITE</strong></div>
+          <div><small>BARRE DROITE</small><strong>JOUEUR DROITE</strong><span class="table-shared"><i id="rightTableTime">00:00</i><i id="rightTableWind">12.0 ND</i></span></div>
           <b id="rightRank">2/4</b>
+          <button class="hud-toggle" id="rightHudToggle" aria-expanded="false" aria-label="Afficher les détails du joueur droite">⌄</button>
         </div>
         <div class="player-instruments">
           <div><small>VITESSE</small><strong><span id="rightSpeed">0.0</span><i> nd</i></strong></div>
@@ -85,6 +91,7 @@
       <div class="intro" id="intro">
         <div class="intro-card">
           <p class="eyebrow" id="courseMeta">BAIE DE QUIBERON · 3,2 NM</p>
+          <span class="version-badge">VERSION 0.5</span>
           <h1>Prends le vent.<br><em>Gagne la ligne.</em></h1>
           <p id="courseDescription">Une régate courte pour apprendre à remonter au vent, virer de bord et exploiter les meilleures allures.</p>
           <div class="setup-grid">
