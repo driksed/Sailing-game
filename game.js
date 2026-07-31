@@ -108,7 +108,7 @@ const AI_COLORS = ['#b8a1ff', '#66e0b5', '#ffd166', '#ef7aa8', '#8dc6ff', '#f5a6
 const setup = { mode: 'solo', fleet: 'ai', difficulty: 'normal', course: 'triangle' };
 const input = [{ left: false, right: false }, { left: false, right: false }];
 const activeContacts = new Set();
-const ZOOM_LEVELS = [.8, 1, 1.2, 1.45];
+const ZOOM_LEVELS = [.8, 1, 1.2];
 let cameraZoomIndex = 1;
 let view = {
   scale: 1, fitScale: 1, zoom: 1, rotation: 0, dpr: 1,
@@ -201,6 +201,7 @@ function buildFleet(state = 'idle') {
   ui.rightHud.classList.toggle('hidden', setup.mode !== 'local' || state === 'idle');
   ui.leftHud.classList.remove('expanded');
   ui.rightHud.classList.remove('expanded');
+  document.body.classList.remove('left-hud-expanded');
   ui.leftHudToggle.setAttribute('aria-expanded', 'false');
   ui.rightHudToggle.setAttribute('aria-expanded', 'false');
   input.forEach(keys => { keys.left = false; keys.right = false; });
@@ -299,6 +300,7 @@ function toggleMobileHud(playerIndex) {
   const button = playerIndex === 0 ? ui.leftHudToggle : ui.rightHudToggle;
   const expanded = hud.classList.toggle('expanded');
   button.setAttribute('aria-expanded', String(expanded));
+  if (playerIndex === 0) document.body.classList.toggle('left-hud-expanded', expanded);
   resize();
 }
 
@@ -1023,8 +1025,10 @@ function updatePlayerHud(side, boat, ordered) {
   const mode = sailingMode(angle);
   const power = sailPerformance(boat, angle);
   const totalEfficiency = clamp(efficiency * power, 0, 1.25);
+  const efficiencyPercent = Math.round(clamp(totalEfficiency, 0, 1) * 1000) / 10;
   const target = nextTarget(boat);
   const spiWarning = boat.sails.spi.current > .15 && Math.abs(angle) < 75;
+  const efficiencyWarning = totalEfficiency < .3 || spiWarning;
 
   ui[`${side}Rank`].textContent = `${ordered.indexOf(boat) + 1}/${game.boats.length}`;
   ui[`${side}Speed`].textContent = boat.speed.toFixed(1);
@@ -1035,8 +1039,10 @@ function updatePlayerHud(side, boat, ordered) {
   ui[`${side}Distance`].textContent = `${(distance(boat, target) / 475).toFixed(1)} NM`;
   ui[`${side}Bearing`].textContent = `${String(Math.round(bearing(boat, target))).padStart(3, '0')}°`;
   ui[`${side}Efficiency`].textContent = `${Math.round(totalEfficiency * 100)}%`;
-  ui[`${side}EfficiencyBar`].style.width = `${clamp(totalEfficiency, 0, 1) * 100}%`;
-  ui[`${side}EfficiencyBar`].style.background = totalEfficiency < .3 || spiWarning ? '#ff6b35' : '';
+  ui[`${side}EfficiencyBar`].style.width = `${efficiencyPercent}%`;
+  ui[`${side}EfficiencyBar`].style.background = efficiencyWarning ? '#ff6b35' : '';
+  ui[`${side}Hud`].style.setProperty('--efficiency-width', `${efficiencyPercent}%`);
+  ui[`${side}Hud`].style.setProperty('--efficiency-color', efficiencyWarning ? '#ff6b35' : 'var(--player-color)');
   ui[`${side}Power`].textContent = `${Math.round(power * 100)}%`;
 
   document.querySelectorAll(`[data-player="${boat.playerIndex}"][data-sail]`).forEach(button => {
